@@ -9,7 +9,7 @@
   - This is also consistent with my belief that Helen Keller's language acquision is supported by her rich world representation.
 - Thus, I plan to test this hypothesis by a seriese of experiments.
 
-# Rough implementation Plan
+# Rough Implementation Plan
 - Authors provide task environment as a docker image.
   - However, I find it tough to do something in the container built from the image.
     - Thus, it may be tough to modify tasks.
