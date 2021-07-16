@@ -5,6 +5,9 @@ name = "pypi"
 
 [packages]
 dm-fast-mapping = {path = "./dm_fast_mapping"}
+jax = {extras = ["cpu"], version = "*"}
+dm-haiku = "*"
+bsuite = "*"
 
 [dev-packages]
 

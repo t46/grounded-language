@@ -1,3 +1,6 @@
 [submodule "dm_fast_mapping"]
 	path = dm_fast_mapping
 	url = https://github.com/deepmind/dm_fast_mapping.git
+[submodule "dm-haiku"]
+	path = dm-haiku
+	url = https://github.com/deepmind/dm-haiku.git
