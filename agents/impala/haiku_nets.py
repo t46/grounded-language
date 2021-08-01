@@ -19,9 +19,11 @@ import dm_env
 import haiku as hk
 import jax.nn
 import jax.numpy as jnp
+import numpy as np
+from .transformer import build_forward_fn
+from transformers import AutoTokenizer
 
 NetOutput = collections.namedtuple('NetOutput', ['policy_logits', 'value'])
-
 
 class CatchNet(hk.RNNCore):
   """A simple neural network for catch."""
@@ -29,6 +31,7 @@ class CatchNet(hk.RNNCore):
   def __init__(self, num_actions, name=None):
     super().__init__(name=name)
     self._num_actions = num_actions
+    self.tokenizer = AutoTokenizer.from_pretrained("bert-base-cased")
 
   def initial_state(self, batch_size):
     if batch_size is None:
@@ -37,12 +40,23 @@ class CatchNet(hk.RNNCore):
       shape = [batch_size]
     return jnp.zeros(shape)  # Dummy.
 
-  def __call__(self, x: dm_env.TimeStep, state):
+  def __call__(self, x: dm_env.TimeStep, state):  # TODO: timestepを引数にとってるし，ここにembeddingを追加すれば良さそう？？
     torso_net = hk.Sequential(
         [hk.Flatten(),
          hk.Linear(128), jax.nn.relu,
          hk.Linear(64), jax.nn.relu])
-    torso_output = torso_net(x.observation)
+    text_net = build_forward_fn(vocab_size=100, d_model=100, num_heads=5,
+                                num_layers=3, dropout_rate=0.1)
+    # observation = x.observation.astype(np.float)
+    # torso_output = torso_net(observation)  # NOTE: env.observation_spec()はuint8だが，floatじゃないとだめだと怒られる
+    # TODO: observationのうち画像に対する処理とtextに対する処理を別途実装する．現状外側で画像だけ呼ぶようにしようとしてたが，内部的に呼ぶこともあるっぽいので，ココで区別する
+    # TODO: 具体的には，まずはじめにobservationを分ける操作を加えて，hk.Sequentialの一部として
+    image = x.observation['RGB_INTERLEAVED'].astype(np.float)
+    text = x.observation['TEXT']
+    text_output = text_net(text)
+    image_output = torso_net(image)
+    torso_output = jnp.concatenate([text_output, image_output])
+
     policy_logits = hk.Linear(self._num_actions)(torso_output)
     value = hk.Linear(1)(torso_output)
     value = jnp.squeeze(value, axis=-1)
@@ -50,7 +64,7 @@ class CatchNet(hk.RNNCore):
 
   def unroll(self, x, state):
     """Unrolls more efficiently than dynamic_unroll."""
-    out, _ = hk.BatchApply(self)(x, None)
+    out, _ = hk.BatchApply(self)(x, None)  # NOTE: env.observation_spec()はuint8だが，floatじゃないとだめだと怒られる
     return out, state
 
 

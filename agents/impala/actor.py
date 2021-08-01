@@ -20,6 +20,7 @@ from examples.impala import learner as learner_lib
 from examples.impala import util
 import jax
 import numpy as np
+import jax.numpy as jnp
 
 
 class Actor:
@@ -53,12 +54,13 @@ class Actor:
              unroll_length: int) -> util.Transition:
     """Run unroll_length agent/environment steps, returning the trajectory."""
     timestep = self._timestep
+    # timestep = jax.device_put(timestep)  # NOTE: convert array to device arary
     agent_state = self._agent_state
     # Unroll one longer if trajectory is empty.
     num_interactions = unroll_length + int(not self._traj)
     subkeys = jax.random.split(rng_key, num_interactions)
     for i in range(num_interactions):
-      timestep = util.preprocess_step(timestep)
+      # timestep = util.preprocess_step(timestep)
       agent_out, next_state = self._agent.step(subkeys[i], params, timestep,
                                                agent_state)
       transition = util.Transition(

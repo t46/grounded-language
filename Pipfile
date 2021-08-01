@@ -8,6 +8,7 @@ dm-fast-mapping = {path = "./dm_fast_mapping"}
 jax = {extras = ["cpu"], version = "*"}
 dm-haiku = "*"
 bsuite = "*"
+transformers = "*"
 
 [dev-packages]
 

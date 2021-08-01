@@ -23,11 +23,11 @@ import numpy as np
 
 import threading
 from typing import List
-from examples.impala import actor as actor_lib
-from examples.impala import agent as agent_lib
-from examples.impala import haiku_nets
-from examples.impala import learner as learner_lib
-from examples.impala import util
+from agents.impala import actor as actor_lib
+from agents.impala import agent as agent_lib
+from agents.impala import haiku_nets
+from agents.impala import learner as learner_lib
+from agents.impala import util
 import jax
 import optax
 
@@ -83,7 +83,9 @@ def main(_):
     # agent = RandomAgent(env.action_spec())
     # Create the networks to optimize (online) and target networks.
     num_actions = len(env.action_spec().values())
-    agent = agent_lib.Agent(num_actions, env.observation_spec(),
+    observation_spec = env.observation_spec()  # NOTE: 'RGB_INTERLEAVED'と'TEXT'からなるが，CatchNetに流してから切り分ける
+    # observation_spec = env.observation_spec()['RGB_INTERLEAVED']  # NOTE: 'RGB_INTERLEAVED'と'TEXT'からなるが，とりあえず画像入力だけ入れる
+    agent = agent_lib.Agent(num_actions, observation_spec,
                             haiku_nets.CatchNet)  # TODO: CatchNetの代わりにこの環境に適したネットワークを実装する
 
     max_updates = MAX_ENV_FRAMES / FRAMES_PER_ITER
@@ -101,42 +103,42 @@ def main(_):
       logger=util.AbslLogger(),  # Provide your own logger here.
   )
 
-# Construct the actors on different threads.
-  # stop_signal in a list so the reference is shared.
-  actor_threads = []
-  stop_signal = [False]
-  for i in range(NUM_ACTORS):
-    actor = actor_lib.Actor(
-        agent,
-        env,
-        UNROLL_LENGTH,
-        learner,
-        rng_seed=i,
-        logger=util.AbslLogger(),  # Provide your own logger here.
-    )
-    args = (actor, stop_signal)
-    actor_threads.append(threading.Thread(target=run_actor, args=args))
+  # Construct the actors on different threads.
+    # stop_signal in a list so the reference is shared.
+    actor_threads = []
+    stop_signal = [False]
+    for i in range(NUM_ACTORS):
+      actor = actor_lib.Actor(
+          agent,
+          env,
+          UNROLL_LENGTH,
+          learner,
+          rng_seed=i,
+          logger=util.AbslLogger(),  # Provide your own logger here.
+      )
+      args = (actor, stop_signal)
+      actor_threads.append(threading.Thread(target=run_actor, args=args))
 
-  # Start the actors and learner.
-  for t in actor_threads:
-    t.start()
-  learner.run(int(max_updates))
+    # Start the actors and learner.
+    for t in actor_threads:
+      t.start()
+    learner.run(int(max_updates))
 
-  # Stop.
-  stop_signal[0] = True
-  for t in actor_threads:
-    t.join()
+    # Stop.
+    stop_signal[0] = True
+    for t in actor_threads:
+      t.join()
 
-    # timestep = env.reset()
-    # score = 0
-    # while not timestep.last():
-    #   action = agent.act()
-    #   timestep = env.step(action)
+      # timestep = env.reset()
+      # score = 0
+      # while not timestep.last():
+      #   action = agent.act()
+      #   timestep = env.step(action)
 
-    #   if timestep.reward:
-    #     score += timestep.reward
-    #     logging.info('Total score: %1.1f, reward: %1.1f', score,
-    #                  timestep.reward)
+      #   if timestep.reward:
+      #     score += timestep.reward
+      #     logging.info('Total score: %1.1f, reward: %1.1f', score,
+      #                  timestep.reward)
 
 
 if __name__ == '__main__':

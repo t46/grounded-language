@@ -58,7 +58,7 @@ class Agent:
     self._init_fn, self._apply_fn = hk.without_apply_rng(
         hk.transform(lambda obs, state: net_factory().unroll(obs, state)))
 
-  @functools.partial(jax.jit, static_argnums=0)
+  @functools.partial(jax.jit, static_argnums=0)  # NOTE: とりあえず型指定する奴らを全部止めてみる
   def initial_params(self, rng_key):
     """Initializes the agent params given the RNG key."""
     dummy_inputs = jax.tree_map(lambda t: np.zeros(t.shape, t.dtype),
@@ -67,13 +67,13 @@ class Agent:
     dummy_inputs = jax.tree_map(lambda t: t[None, None, ...], dummy_inputs)
     return self._init_fn(rng_key, dummy_inputs, self.initial_state(1))
 
-  @functools.partial(jax.jit, static_argnums=(0, 1))
+  @functools.partial(jax.jit, static_argnums=(0, 1))  # NOTE: とりあえず型指定する奴らを全部止めてみる
   def initial_state(self, batch_size: Optional[int]):
     """Returns agent initial state."""
     # We expect that generating the initial_state does not require parameters.
     return self._initial_state_apply_fn(None, batch_size)
 
-  @functools.partial(jax.jit, static_argnums=(0,))
+  # @functools.partial(jax.jit, static_argnums=(0,))  # NOTE: stringがあると動くなるので一時停止
   def step(
       self,
       rng_key,
@@ -83,10 +83,10 @@ class Agent:
   ) -> Tuple[AgentOutput, Nest]:
     """For a given single-step, unbatched timestep, output the chosen action."""
     # Pad timestep, state to be [T, B, ...] and [B, ...] respectively.
-    timestep = jax.tree_map(lambda t: t[None, None, ...], timestep)
+    # timestep = jax.tree_map(lambda t: t[None, None, ...], timestep)  # 'StepType' object is not subscriptableとなる
     state = jax.tree_map(lambda t: t[None, ...], state)
 
-    net_out, next_state = self._apply_fn(params, timestep, state)
+    net_out, next_state = self._apply_fn(params, timestep, state)  # TODO: ここでtimestepを入力して__call__を呼んでる感じになってる
     # Remove the padding from above.
     net_out = jax.tree_map(lambda t: jnp.squeeze(t, axis=(0, 1)), net_out)
     next_state = jax.tree_map(lambda t: jnp.squeeze(t, axis=0), next_state)
